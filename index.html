@@ -8,16 +8,29 @@
 </head>
 <body>
   <main class="app">
-    <h1>Mis tareas</h1>
+    <header class="header">
+      <h1>Mis tareas</h1>
+      <p id="counter" class="counter" aria-live="polite"></p>
+    </header>
 
     <form id="task-form" class="task-form" autocomplete="off">
       <input id="task-input" type="text" placeholder="¿Qué hay que hacer?" aria-label="Nueva tarea" required>
       <button type="submit">Agregar</button>
     </form>
 
+    <nav class="filters" aria-label="Filtrar tareas">
+      <button type="button" class="filter-btn" data-filter="all" aria-pressed="true">Todas</button>
+      <button type="button" class="filter-btn" data-filter="pending" aria-pressed="false">Pendientes</button>
+      <button type="button" class="filter-btn" data-filter="done" aria-pressed="false">Hechas</button>
+    </nav>
+
     <ul id="task-list" class="task-list" aria-live="polite"></ul>
 
     <p id="empty-msg" class="empty-msg">No hay tareas todavía.</p>
+
+    <footer class="footer">
+      <button type="button" id="clear-done" class="ghost-btn">Borrar hechas</button>
+    </footer>
   </main>
 
   <script src="app.js"></script>
