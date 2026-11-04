@@ -1,199 +1,89 @@
-(function () {
-  "use strict";
+// Lista de tareas con almacenamiento en localStorage.
+// Cada tarea tiene la forma { id, text, done }.
 
-  const STORAGE_KEY = "kiro-todo-tasks";
+const STORAGE_KEY = 'tareas';
 
-  const form = document.getElementById("task-form");
-  const input = document.getElementById("task-input");
-  const list = document.getElementById("task-list");
-  const emptyMessage = document.getElementById("empty-msg");
-  const counter = document.getElementById("counter");
-  const clearDoneButton = document.getElementById("clear-done");
-  const filterButtons = document.querySelectorAll(".filter-btn");
+const form = document.getElementById('task-form');
+const input = document.getElementById('task-input');
+const list = document.getElementById('task-list');
+const emptyMsg = document.getElementById('empty-msg');
 
-  let tasks = loadTasks();
-  let currentFilter = "all";
+let tasks = loadTasks();
 
-  // Lee las tareas guardadas en localStorage. Si los datos están dañados, empieza vacío.
-  function loadTasks() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      return [];
-    }
+function loadTasks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    // Si el dato guardado está corrupto, empezamos con una lista vacía.
+    return [];
   }
+}
 
-  function saveTasks() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  }
+function saveTasks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
 
-  function createId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  }
+function render() {
+  list.textContent = '';
 
-  function visibleTasks() {
-    if (currentFilter === "pending") {
-      return tasks.filter(function (t) { return !t.done; });
-    }
-    if (currentFilter === "done") {
-      return tasks.filter(function (t) { return t.done; });
-    }
-    return tasks;
-  }
+  tasks.forEach((task) => {
+    const item = document.createElement('li');
+    item.className = 'task-item' + (task.done ? ' done' : '');
 
-  function updateCounter() {
-    const pending = tasks.filter(function (t) { return !t.done; }).length;
-    counter.textContent = tasks.length === 0
-      ? "Sin tareas"
-      : pending + " de " + tasks.length + " pendientes";
-  }
-
-  function updateEmptyMessage(shown) {
-    if (tasks.length === 0) {
-      emptyMessage.textContent = "No hay tareas todavía.";
-    } else if (currentFilter === "pending") {
-      emptyMessage.textContent = "No tienes tareas pendientes.";
-    } else if (currentFilter === "done") {
-      emptyMessage.textContent = "Todavía no hay tareas hechas.";
-    }
-    emptyMessage.hidden = shown.length > 0;
-  }
-
-  // Cambia la fila a modo edición. Enter o salir del campo guarda, Escape cancela.
-  function startEditing(task, item, label) {
-    const editor = document.createElement("input");
-    editor.type = "text";
-    editor.className = "edit-input";
-    editor.value = task.text;
-    editor.setAttribute("aria-label", "Editar tarea");
-
-    item.replaceChild(editor, label);
-    editor.focus();
-    editor.select();
-
-    let finished = false;
-
-    function finish(save) {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      const value = editor.value.trim();
-      if (save && value !== "") {
-        task.text = value;
-        saveTasks();
-      }
-      render();
-    }
-
-    editor.addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        finish(true);
-      } else if (event.key === "Escape") {
-        finish(false);
-      }
-    });
-    editor.addEventListener("blur", function () {
-      finish(true);
-    });
-  }
-
-  function createRow(task) {
-    const item = document.createElement("li");
-    if (task.done) {
-      item.classList.add("done");
-    }
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
     checkbox.checked = task.done;
-    checkbox.setAttribute("aria-label", "Marcar como hecha: " + task.text);
-    checkbox.addEventListener("change", function () {
-      task.done = checkbox.checked;
-      saveTasks();
-      render();
-    });
+    checkbox.id = 'task-' + task.id;
+    checkbox.setAttribute('aria-label', 'Marcar como hecha: ' + task.text);
+    checkbox.addEventListener('change', () => toggleTask(task.id));
 
-    const label = document.createElement("span");
-    label.className = "task-label";
-    label.textContent = task.text;
-    label.title = "Doble clic para editar";
-    label.addEventListener("dblclick", function () {
-      startEditing(task, item, label);
-    });
+    const label = document.createElement('label');
+    label.htmlFor = checkbox.id;
+    label.className = 'task-text';
+    label.textContent = task.text; // textContent evita inyectar HTML
 
-    const actions = document.createElement("div");
-    actions.className = "row-actions";
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.textContent = 'Borrar';
+    deleteBtn.setAttribute('aria-label', 'Borrar tarea: ' + task.text);
+    deleteBtn.addEventListener('click', () => deleteTask(task.id));
 
-    const editButton = document.createElement("button");
-    editButton.type = "button";
-    editButton.className = "small-btn";
-    editButton.textContent = "Editar";
-    editButton.setAttribute("aria-label", "Editar tarea: " + task.text);
-    editButton.addEventListener("click", function () {
-      startEditing(task, item, label);
-    });
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "small-btn danger";
-    deleteButton.textContent = "Borrar";
-    deleteButton.setAttribute("aria-label", "Borrar tarea: " + task.text);
-    deleteButton.addEventListener("click", function () {
-      tasks = tasks.filter(function (t) { return t.id !== task.id; });
-      saveTasks();
-      render();
-    });
-
-    actions.append(editButton, deleteButton);
-    item.append(checkbox, label, actions);
-    return item;
-  }
-
-  function render() {
-    const shown = visibleTasks();
-
-    list.replaceChildren();
-    shown.forEach(function (task) {
-      list.appendChild(createRow(task));
-    });
-
-    updateCounter();
-    updateEmptyMessage(shown);
-    clearDoneButton.disabled = !tasks.some(function (t) { return t.done; });
-  }
-
-  form.addEventListener("submit", function (event) {
-    event.preventDefault();
-    const text = input.value.trim();
-    if (text === "") {
-      return;
-    }
-
-    tasks.push({ id: createId(), text: text, done: false });
-    saveTasks();
-    input.value = "";
-    render();
-    input.focus();
+    item.append(checkbox, label, deleteBtn);
+    list.appendChild(item);
   });
 
-  filterButtons.forEach(function (button) {
-    button.addEventListener("click", function () {
-      currentFilter = button.dataset.filter;
-      filterButtons.forEach(function (other) {
-        other.setAttribute("aria-pressed", String(other === button));
-      });
-      render();
-    });
-  });
+  emptyMsg.hidden = tasks.length > 0;
+}
 
-  clearDoneButton.addEventListener("click", function () {
-    tasks = tasks.filter(function (t) { return !t.done; });
-    saveTasks();
-    render();
-  });
-
+function addTask(text) {
+  tasks.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), text, done: false });
+  saveTasks();
   render();
-})();
+}
+
+function toggleTask(id) {
+  const task = tasks.find((t) => t.id === id);
+  if (!task) return;
+  task.done = !task.done;
+  saveTasks();
+  render();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter((t) => t.id !== id);
+  saveTasks();
+  render();
+}
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  addTask(text);
+  input.value = '';
+  input.focus();
+});
+
+render();
